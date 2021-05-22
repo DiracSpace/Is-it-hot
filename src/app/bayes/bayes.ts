@@ -17,7 +17,11 @@ interface NaiveBayesState {
     correlations: IMap<IMap<IMap<IMap<number>>>>
 }
 
-class NaiveBayes implements Classifier {
+interface Accumulator {
+    [x: string]: number;
+}
+
+export class NaiveBayes implements Classifier {
 
     /**
      * creates a new classifier.
@@ -59,13 +63,13 @@ class NaiveBayes implements Classifier {
                 .map(attribute => this.state.features[feature][attribute])
                 .reduce((acc, count) => acc + count, 0)
             return Object.keys(this.state.features[feature])
-                .reduce((acc, attribute) => {
+                .reduce((acc: Accumulator, attribute: string | number) => {
                     acc[attribute] = this.state.features[feature][attribute] / sum
                     return acc
                 }, {})
         }
         else {
-            let sums = Object.keys(obj).reduce((sums, inner_feature) => {
+            let sums = Object.keys(obj).reduce((sums: Accumulator, inner_feature: string | number) => {
                 sums[inner_feature] = Object.keys(this.state.correlations[feature]).reduce((sum, attribute) => {
                     if (obj[inner_feature] !== undefined
                         && this.state.correlations[feature][attribute][inner_feature] !== undefined
@@ -75,8 +79,8 @@ class NaiveBayes implements Classifier {
                 }, 0);
                 return sums
             }, {})
-            let result = Object.keys(this.state.correlations[feature]).reduce((result, attribute) => {
-                let probabilities = Object.keys(obj).reduce((probabilities, inner_feature) => {
+            let result = Object.keys(this.state.correlations[feature]).reduce((result: Accumulator, attribute: string | number) => {
+                let probabilities = Object.keys(obj).reduce((probabilities: Accumulator, inner_feature: string | number) => {
                     if (obj[inner_feature] !== undefined
                         && this.state.correlations[feature][attribute][inner_feature] !== undefined
                         && this.state.correlations[feature][attribute][inner_feature][obj[inner_feature]] !== undefined) {
@@ -88,8 +92,8 @@ class NaiveBayes implements Classifier {
                 return result
             }, {})
 
-            let sum = Object.keys(result).reduce((acc, attribute) => acc + result[attribute], 0)
-            return Object.keys(result).reduce((acc, attribute) => {
+            let sum = Object.keys(result).reduce((acc: number, attribute: string | number) => acc + result[attribute], 0)
+            return Object.keys(result).reduce((acc: Accumulator, attribute: string | number) => {
                 acc[attribute] = sum > 0 ? result[attribute] / sum : 0
                 return acc
             }, {})
