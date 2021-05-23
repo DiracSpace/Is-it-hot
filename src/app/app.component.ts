@@ -1,8 +1,9 @@
 import { Component, OnInit } from '@angular/core';
-import { City } from 'src/app/models/city';
+import { Climate } from 'src/app/models/climate';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { NaiveBayes } from 'src/app/bayes/bayes';
+import { YesNoBayesResult } from 'src/app/models/yesnobayesresult';
 
 @Component({
   selector: 'app-root',
@@ -12,7 +13,18 @@ import { NaiveBayes } from 'src/app/bayes/bayes';
 export class AppComponent implements OnInit {
   title = 'naive-bayes';
 
-  private city_temp_data: City[] = [];
+  private climate_data: Climate[] = [];
+  public climate: Climate = {
+    outlook : "sunny",
+    temp    : "cool",
+    humidity: "high",
+    windy   : "yes",
+  }
+
+  public yes: string;
+  public no: string;
+  public dataset: number;
+  public isLoaded: boolean;
 
   constructor(
     private http: HttpClient,
@@ -20,49 +32,66 @@ export class AppComponent implements OnInit {
 
   ngOnInit() {
     this.request();
+
+    if (this.isLoaded) {
+      this.naive_bayes;
+    }
+  }
+
+  get yesValue() {
+    return Number(this.yes);
+  }
+
+  get noValue() {
+    return Number(this.no);
+  }
+
+  get yesType() {
+    return (this.checkMaxNumber() == Number(parseFloat(this.yes).toFixed(2))) ? "success" : "danger";
+  }
+
+  get noType() {
+    return (this.checkMaxNumber() == Number(parseFloat(this.no).toFixed(2))) ? "success" : "danger";
+  }
+
+  onClimateChange(climate: Climate) {
+    this.climate = climate;
+    this.naive_bayes();
+  }
+
+  private checkMaxNumber() {
+    return Math.max(Number(this.no), Number(this.yes));
   }
 
   private async request() {
+    this.isLoaded = false;
     this.getJson().subscribe({
-      next: (data: City[]) => {
-        this.city_temp_data = data;
+      next: (data: Climate[]) => {
+        this.climate_data = data;
+        this.dataset = data.length;
       },
       error: message => {
         console.log("error: ", message);
       },
-      complete: () => this.naive_bayes()
+      complete: () => {
+        this.isLoaded = true;
+        this.naive_bayes();
+      }
     });
   }
 
   private naive_bayes() {
     let classifier = new NaiveBayes();
 
-    classifier.train({ outlook: "rainy", temp: "hot", humidity: "high", windy: "no", is_it_hot: "no" })
-    classifier.train({ outlook: "rainy", temp: "hot", humidity: "high", windy: "yes", is_it_hot: "no" })
-    classifier.train({ outlook: "overcast", temp: "hot", humidity: "high", windy: "no", is_it_hot: "yes" })
-    classifier.train({ outlook: "sunny", temp: "mild", humidity: "high", windy: "no", is_it_hot: "yes" })
-    classifier.train({ outlook: "sunny", temp: "cool", humidity: "normal", windy: "no", is_it_hot: "yes" })
-    classifier.train({ outlook: "sunny", temp: "cool", humidity: "normal", windy: "yes", is_it_hot: "no" })
-    classifier.train({ outlook: "overcast", temp: "cool", humidity: "normal", windy: "yes", is_it_hot: "yes" })
-    classifier.train({ outlook: "rainy", temp: "mild", humidity: "high", windy: "no", is_it_hot: "no" })
-    classifier.train({ outlook: "rainy", temp: "cool", humidity: "normal", windy: "no", is_it_hot: "yes" })
-    classifier.train({ outlook: "sunny", temp: "mild", humidity: "normal", windy: "no", is_it_hot: "yes" })
-    classifier.train({ outlook: "rainy", temp: "mild", humidity: "normal", windy: "yes", is_it_hot: "yes" })
-    classifier.train({ outlook: "overcast", temp: "mild", humidity: "high", windy: "yes", is_it_hot: "yes" })
-    classifier.train({ outlook: "overcast", temp: "hot", humidity: "normal", windy: "no", is_it_hot: "yes" })
-    classifier.train({ outlook: "sunny", temp: "mild", humidity: "high", windy: "yes", is_it_hot: "no" })
+    this.climate_data.forEach(climate => classifier.train(climate));
 
-    let p = classifier.classify("is_it_hot", {
-      outlook : "sunny",
-      temp    : "cool",
-      humidity: "high",
-      windy   : "yes",
-    });
+    let p: YesNoBayesResult = classifier.classify("is_it_hot", this.climate);
 
-    console.log(p);
+    this.no = parseFloat(p.no).toFixed(2);
+    this.yes = parseFloat(p.yes).toFixed(2);
   }
 
   private getJson(): Observable<any> {
-    return this.http.get('./assets/file.json');
+    return this.http.get('./assets/temps6.json');
   }
 }
